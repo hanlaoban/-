@@ -2,39 +2,79 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber Christmas AR - v2.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cyber Xmas AR Mobile</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        /* --- 沉浸式基础设置 --- */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            font-family: 'Courier New', Courier, monospace; 
+            touch-action: none; /* 禁止手机下拉刷新/滚动 */
+        }
         
-        /* 容器布局 */
         #container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
         
-        /* 1. 摄像头背景 (底层) - 镜像翻转 */
-        #video-feed { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%) contrast(1.2) brightness(0.6); z-index: 0; transform: scaleX(-1); }
+        /* 1. 摄像头层 (底层) */
+        #video-feed { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; 
+            filter: grayscale(100%) contrast(1.1) brightness(0.4); /* 压暗背景以突出辉光 */
+            transform: scaleX(-1); 
+            z-index: 0; 
+        }
         
-        /* 2. 手部骨骼绘制层 (中间层) - 镜像翻转以匹配视频 */
-        #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; pointer-events: none; transform: scaleX(-1); }
+        /* 2. 骨骼可视化 (中间层) */
+        #skeleton-canvas { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; 
+            transform: scaleX(-1); 
+            z-index: 1; 
+            pointer-events: none; 
+        }
 
-        /* 3. Three.js 3D 粒子层 (顶层) */
-        #three-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+        /* 3. Three.js 粒子层 (顶层) */
+        #three-canvas { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 2; 
+        }
 
-        /* UI HUD */
-        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; z-index: 10; pointer-events: none; }
-        .hud-text { font-size: 12px; letter-spacing: 1px; line-height: 1.5; text-shadow: 0 0 5px rgba(0, 255, 255, 0.5); color: #0ff; }
-        .title { font-size: 24px; font-weight: bold; border-bottom: 2px solid #0ff; display: inline-block; margin-bottom: 10px; color: #fff; }
+        /* --- UI HUD --- */
+        #ui-layer { 
+            position: absolute; top: 20px; left: 20px; 
+            color: rgba(255, 255, 255, 0.9); 
+            z-index: 10; pointer-events: none; 
+            text-shadow: 0 0 4px #000;
+        }
+        .title { 
+            font-size: 18px; font-weight: bold; 
+            border-bottom: 2px solid #00ffcc; 
+            padding-bottom: 5px; margin-bottom: 8px; 
+            display: inline-block;
+            color: #00ffcc;
+        }
+        .hud-text { font-size: 11px; line-height: 1.6; font-weight: bold; }
         
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #0f0; font-size: 20px; z-index: 20; text-shadow: 0 0 10px #0f0; font-weight: bold; }
-        
-        /* GUI Container - 强制不可折叠样式 */
-        #gui-container { position: absolute; top: 20px; right: 20px; z-index: 100; }
-        /* 隐藏 lil-gui 的关闭按钮并禁止点击标题栏折叠 */
-        .lil-gui .title { pointer-events: none; cursor: default; }
-        .lil-gui .close-button { display: none; }
-        .lil-gui { --background-color: rgba(0, 0, 0, 0.8); --text-color: #0ff; --title-background-color: #003333; --widget-color: #444; --hover-color: #666; --focus-color: #0ff; border: 1px solid #0ff; }
+        #loading { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            color: #00ffcc; text-align: center; z-index: 50; 
+            font-size: 14px; letter-spacing: 2px;
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        /* --- GUI 样式优化 (可折叠) --- */
+        #gui-container { position: absolute; top: 10px; right: 10px; z-index: 100; }
+        .lil-gui { 
+            --background-color: rgba(10, 10, 10, 0.6);
+            --text-color: #eee;
+            --title-background-color: rgba(0, 50, 50, 0.8);
+            --widget-color: #444;
+            backdrop-filter: blur(4px);
+        }
     </style>
     
-    <!-- Import Maps -->
     <script type="importmap">
         {
             "imports": {
@@ -44,32 +84,32 @@
         }
     </script>
     
-    <!-- MediaPipe Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    
-    <!-- lil-gui -->
     <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.19.1/dist/lil-gui.umd.min.js"></script>
 </head>
 <body>
 
     <div id="container">
-        <video id="video-feed" playsinline></video>
+        <video id="video-feed" playsinline webkit-playsinline></video>
         <canvas id="skeleton-canvas"></canvas>
         <div id="three-canvas"></div>
     </div>
 
-    <div id="loading">SYSTEM INITIALIZING...<br><span style="font-size:12px; color:#fff">Camera Access Required</span></div>
+    <div id="loading">
+        <div>SYSTEM STARTUP</div>
+        <div style="font-size:10px; margin-top:5px; color:#fff">INITIALIZING NEURAL LINK...</div>
+    </div>
 
     <div id="ui-layer">
-        <div class="title">PROJECT: XMAS_CORE_V2</div>
+        <div class="title">NEON XMAS AR</div>
         <div class="hud-text">
-            STATUS: <span id="status">SCANNING...</span><br>
-            PARTICLES: 15,000<br>
-            GESTURE: <span id="gesture-display">NONE</span><br>
-            MODEL: <span id="model-name">TREE</span>
+            CORE: <span id="status" style="color:red">OFFLINE</span><br>
+            PARTICLES: 30,000<br>
+            HAND: <span id="gesture-display">DETECTING...</span><br>
+            OBJ: <span id="model-name" style="color:#00ffcc">TREE</span>
         </div>
     </div>
     
@@ -78,54 +118,47 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // --- Configuration ---
+        // --- Config ---
         const CONFIG = {
-            particleCount: 15000, // Reduced to 15,000
-            particleSize: 0.18,   // Slightly larger since there are fewer
-            glowIntensity: 0.8,
+            particleCount: 30000, // 30k 粒子
+            baseSize: 0.12,       // 基础大小微调，既显式又精致
+            glowStrength: 1.2,    // 辉光强度
             repulseRadius: 2.0,
-            repulseStrength: 5.0,
-            rotationSpeed: 0.5,
-            explosionForce: 0.0,
-            colors: [
-                new THREE.Color(0x00ff00), // Neon Green
-                new THREE.Color(0xff0044), // Neon Red
-                new THREE.Color(0xffffff), // Bright White
-                new THREE.Color(0x00ffff)  // Cyber Cyan
-            ]
+            repulseStrength: 4.0,
+            autoRotate: true,
+            mobileOptimized: window.innerWidth < 768
         };
 
-        // --- Global Variables ---
-        let scene, camera, renderer, particles, material, geometry;
+        // 如果是手机，为了流畅度，稍微降低一点点渲染分辨率（不是粒子数）
+        const RENDER_PIXEL_RATIO = CONFIG.mobileOptimized ? Math.min(window.devicePixelRatio, 2) : Math.min(window.devicePixelRatio, 2);
+
+        let scene, camera, renderer, particles, material;
         let skeletonCtx, skeletonCanvas;
         let currentShapeIndex = 0;
         let time = 0;
-        let isExploding = false;
-        let explosionTime = 0;
         
-        // Interaction States
-        let isPinching = false;
-        let isFist = false;
-        let prevFist = false;
+        // Interaction
         let handPosition = new THREE.Vector3(999, 999, 999);
+        let isPinching = false, isFist = false, prevFist = false;
+        let isExploding = false, explosionTime = 0;
 
-        const shapeNames = ["TREE", "SNOWMAN", "GIFT", "ANTLERS", "CANDY_CANE"];
+        const shapeNames = ["QUANTUM_TREE", "CYBER_SNOWMAN", "DATA_GIFT", "NEON_ANTLERS", "SUGAR_ROD"];
 
-        // --- Initialization ---
         async function init() {
+            // 1. Scene
             const container = document.getElementById('three-canvas');
-            
-            // 1. Scene Setup
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.z = 5;
+            
+            // 广角镜头适应手机竖屏
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 6; // 稍微拉远一点以容纳更多粒子
 
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !CONFIG.mobileOptimized }); // 手机关闭AA省电
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(RENDER_PIXEL_RATIO);
             container.appendChild(renderer.domElement);
 
-            // 2. 2D Skeleton Canvas Setup
+            // 2. Skeleton Canvas
             skeletonCanvas = document.getElementById('skeleton-canvas');
             skeletonCtx = skeletonCanvas.getContext('2d');
             resizeCanvas();
@@ -133,18 +166,16 @@
             // 3. Particles
             createParticles();
 
-            // 4. GUI
+            // 4. GUI (可折叠)
             setupGUI();
 
-            // 5. MediaPipe Setup
+            // 5. MediaPipe
             const videoElement = document.getElementById('video-feed');
-            const hands = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-            }});
+            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
             
             hands.setOptions({
                 maxNumHands: 1,
-                modelComplexity: 1,
+                modelComplexity: CONFIG.mobileOptimized ? 0 : 1, // 手机用轻量模型
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
@@ -152,11 +183,10 @@
             hands.onResults(onHandsResults);
 
             const cameraUtils = new Camera(videoElement, {
-                onFrame: async () => {
-                    await hands.send({image: videoElement});
-                },
-                width: 1280,
-                height: 720
+                onFrame: async () => { await hands.send({image: videoElement}); },
+                width: 1280, // 保持较高分辨率以获得准确手势
+                height: 720,
+                facingMode: 'user' // 强制前置
             });
             cameraUtils.start();
 
@@ -165,66 +195,43 @@
             animate();
         }
 
-        // --- 2D Skeleton Visualization ---
-        function drawSkeleton(landmarks) {
-            // Clear previous frame
-            skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
-            
-            // Draw Connectors (Bones)
-            drawConnectors(skeletonCtx, landmarks, HAND_CONNECTIONS, {
-                color: '#00ffff', // Cyan bones
-                lineWidth: 2
-            });
-
-            // Draw Landmarks (Joints)
-            drawLandmarks(skeletonCtx, landmarks, {
-                color: '#ffffff',
-                fillColor: '#000000',
-                lineWidth: 1,
-                radius: 3
-            });
-        }
-
-        function resizeCanvas() {
-            skeletonCanvas.width = window.innerWidth;
-            skeletonCanvas.height = window.innerHeight;
-        }
-
-        // --- Particle System ---
         function createParticles() {
-            geometry = new THREE.BufferGeometry();
+            const geometry = new THREE.BufferGeometry();
             const positions = new Float32Array(CONFIG.particleCount * 3);
             const targets = new Float32Array(CONFIG.particleCount * 3);
             const colors = new Float32Array(CONFIG.particleCount * 3);
-            const sizes = new Float32Array(CONFIG.particleCount);
             const randoms = new Float32Array(CONFIG.particleCount);
 
+            // 唯美配色：赛博圣诞
+            const palette = [
+                new THREE.Color('#00ffcc'), // Cyan
+                new THREE.Color('#ff0055'), // Neon Red
+                new THREE.Color('#ffffff'), // White
+                new THREE.Color('#ffee00')  // Gold
+            ];
+
             for(let i=0; i<CONFIG.particleCount; i++) {
-                // Initial random dispersion
-                positions[i*3] = (Math.random() - 0.5) * 15;
-                positions[i*3+1] = (Math.random() - 0.5) * 15;
-                positions[i*3+2] = (Math.random() - 0.5) * 15;
+                positions[i*3] = (Math.random()-0.5)*20;
+                positions[i*3+1] = (Math.random()-0.5)*20;
+                positions[i*3+2] = (Math.random()-0.5)*20;
                 
                 randoms[i] = Math.random();
-                sizes[i] = Math.random();
-
-                const c = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                colors[i*3] = c.r;
-                colors[i*3+1] = c.g;
-                colors[i*3+2] = c.b;
+                
+                const c = palette[Math.floor(Math.random() * palette.length)];
+                colors[i*3] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
             }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             geometry.setAttribute('target', new THREE.BufferAttribute(targets, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
-            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
+            // Shader: 极致优化的唯美光点
             material = new THREE.ShaderMaterial({
                 uniforms: {
                     uTime: { value: 0 },
                     uPixelRatio: { value: renderer.getPixelRatio() },
-                    uSize: { value: CONFIG.particleSize * 50 },
+                    uSize: { value: CONFIG.baseSize * 40 },
                     uHandPos: { value: new THREE.Vector3(999,999,999) },
                     uRepulseRadius: { value: CONFIG.repulseRadius },
                     uRepulseStrength: { value: CONFIG.repulseStrength },
@@ -242,106 +249,61 @@
                     attribute vec3 target;
                     attribute vec3 color;
                     attribute float aRandom;
-                    attribute float size;
-
                     varying vec3 vColor;
                     varying float vAlpha;
 
-                    // Noise Function
-                    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-                    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-                    vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-                    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-                    float snoise(vec3 v) { 
-                        const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-                        const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
-                        vec3 i  = floor(v + dot(v, C.yyy) );
-                        vec3 x0 = v - i + dot(i, C.xxx) ;
-                        vec3 g = step(x0.yzx, x0.xyz);
-                        vec3 l = 1.0 - g;
-                        vec3 i1 = min( g.xyz, l.zxy );
-                        vec3 i2 = max( g.xyz, l.zxy );
-                        vec3 x1 = x0 - i1 + C.xxx;
-                        vec3 x2 = x0 - i2 + C.yyy;
-                        vec3 x3 = x0 - D.yyy;
-                        i = mod289(i); 
-                        vec4 p = permute( permute( permute( 
-                                    i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-                                + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-                                + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-                        float n_ = 0.142857142857; 
-                        vec3  ns = n_ * D.wyz - D.xzx;
-                        vec4 j = p - 49.0 * floor(p * ns.z * ns.z); 
-                        vec4 x_ = floor(j * ns.z);
-                        vec4 y_ = floor(j - 7.0 * x_ ); 
-                        vec4 x = x_ *ns.x + ns.yyyy;
-                        vec4 y = y_ *ns.x + ns.yyyy;
-                        vec4 h = 1.0 - abs(x) - abs(y);
-                        vec4 b0 = vec4( x.xy, y.xy );
-                        vec4 b1 = vec4( x.zw, y.zw );
-                        vec4 s0 = floor(b0)*2.0 + 1.0;
-                        vec4 s1 = floor(b1)*2.0 + 1.0;
-                        vec4 sh = -step(h, vec4(0.0));
-                        vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-                        vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-                        vec3 p0 = vec3(a0.xy,h.x);
-                        vec3 p1 = vec3(a0.zw,h.y);
-                        vec3 p2 = vec3(a1.xy,h.z);
-                        vec3 p3 = vec3(a1.zw,h.w);
-                        vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-                        p0 *= norm.x;
-                        p1 *= norm.y;
-                        p2 *= norm.z;
-                        p3 *= norm.w;
-                        vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-                        m = m * m;
-                        return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
-                                                    dot(p2,x2), dot(p3,x3) ) );
-                    }
-
                     void main() {
                         vColor = color;
-                        vec3 pos = target; 
+                        vec3 pos = target;
 
-                        // 1. Repulsion
-                        float dist = distance(pos, uHandPos);
-                        if (dist < uRepulseRadius && uHandPos.x < 900.0) {
-                            vec3 dir = normalize(pos - uHandPos);
-                            float force = (1.0 - dist / uRepulseRadius) * uRepulseStrength;
-                            pos += dir * force;
+                        // 1. 悬停物理场 (简单高效的球形排斥)
+                        float d = distance(pos, uHandPos);
+                        if (d < uRepulseRadius) {
+                            vec3 pushDir = normalize(pos - uHandPos);
+                            pos += pushDir * (uRepulseStrength * (1.0 - d/uRepulseRadius));
                         }
 
-                        // 2. Explosion
+                        // 2. 爆炸效果 (基于正弦波扩散，无需昂贵噪声)
                         if (uExplosion > 0.01) {
-                            vec3 noiseVec = vec3(
-                                snoise(vec3(pos.x, uTime, 0.0)),
-                                snoise(vec3(pos.y, uTime, 1.0)),
-                                snoise(vec3(pos.z, uTime, 2.0))
-                            );
-                            pos += noiseVec * uExplosion * 6.0;
+                            vec3 centerDir = normalize(pos); // 从中心向外
+                            float blast = uExplosion * (5.0 + aRandom * 5.0);
+                            pos += centerDir * blast;
+                            // 增加旋转混乱
+                            float angle = uExplosion * 3.14 * (aRandom - 0.5);
+                            float s = sin(angle), c = cos(angle);
+                            pos.xz = mat2(c, -s, s, c) * pos.xz;
                         }
 
-                        // 3. Float
-                        pos.y += sin(uTime * 2.0 + aRandom * 10.0) * 0.05;
+                        // 3. 呼吸律动 (模拟生命感)
+                        float breath = sin(uTime * 1.5 + aRandom * 6.28) * 0.04;
+                        pos += normalize(pos) * breath;
 
                         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
                         gl_Position = projectionMatrix * mvPosition;
-                        gl_PointSize = uSize * size * (10.0 / -mvPosition.z) * uPixelRatio;
+
+                        // 深度衰减 (离得越近越大，越远越小且虚化)
+                        float depthScale = 8.0 / -mvPosition.z;
+                        gl_PointSize = uSize * depthScale * uPixelRatio;
                         
-                        vAlpha = 0.8 + 0.2 * sin(uTime * 10.0 + aRandom * 100.0);
+                        // 距离透明度雾化
+                        float fog = smoothstep(20.0, 5.0, -mvPosition.z);
+                        vAlpha = (0.6 + 0.4 * sin(uTime * 3.0 + aRandom * 10.0)) * fog;
                     }
                 `,
                 fragmentShader: `
                     varying vec3 vColor;
                     varying float vAlpha;
-
                     void main() {
-                        vec2 uv = gl_PointCoord.xy - 0.5;
-                        float r = length(uv);
+                        // 模拟光点纹理 (中心亮，边缘柔)
+                        vec2 xy = gl_PointCoord.xy - vec2(0.5);
+                        float r = length(xy);
                         if (r > 0.5) discard;
+                        
+                        // 辉光核心计算
                         float glow = 1.0 - (r * 2.0);
-                        glow = pow(glow, 2.0);
-                        gl_FragColor = vec4(vColor * 1.8, vAlpha * glow);
+                        glow = pow(glow, 1.5); // 使中心更亮
+                        
+                        gl_FragColor = vec4(vColor, vAlpha * glow);
                     }
                 `,
                 transparent: true,
@@ -354,65 +316,80 @@
             generateShape(0);
         }
 
+        // --- Procedural Shapes (High Particle Density Logic) ---
         function generateShape(index) {
             const positions = particles.geometry.attributes.target.array;
             const count = CONFIG.particleCount;
 
             for(let i=0; i<count; i++) {
                 let x, y, z;
-                const theta = Math.random() * Math.PI * 2;
                 const p = i * 3;
+                const rnd = Math.random();
+                const theta = Math.random() * Math.PI * 2;
 
-                if (index === 0) { // Tree
-                    const h = Math.random() * 4 - 2;
-                    const radius = (2 - h) * 0.4 * Math.sqrt(Math.random()); 
-                    x = Math.cos(theta) * radius;
-                    z = Math.sin(theta) * radius;
-                    y = h;
-                    if (Math.random() > 0.85) { x *= 1.2; z *= 1.2; } // Sparse outer
-                } else if (index === 1) { // Snowman
-                    const s = Math.random();
-                    let cy, cr;
-                    if (s < 0.45) { cy = -1.2; cr = 1.1; }
-                    else if (s < 0.8) { cy = 0.5; cr = 0.8; }
-                    else { cy = 1.8; cr = 0.5; }
+                if (index === 0) { // Tree: Cone Volume
+                    const h = (Math.random() - 0.5) * 5; // Height
+                    const rBase = (2.5 - h) * 0.5; // Radius matches height
+                    const r = rBase * Math.sqrt(Math.random()); // Volume sampling
+                    x = Math.cos(theta) * r;
+                    z = Math.sin(theta) * r;
+                    y = h - 0.5;
+                    // Spirals
+                    if(rnd > 0.9) {
+                        x *= 1.2; z *= 1.2;
+                        y += Math.sin(theta*5)*0.1;
+                    }
+                } 
+                else if (index === 1) { // Snowman
+                    let r, cy;
+                    if (rnd < 0.4) { cy = -1.8; r = 1.3; }
+                    else if (rnd < 0.75) { cy = 0.2; r = 1.0; }
+                    else { cy = 1.8; r = 0.7; }
+                    
                     const phi = Math.acos(2 * Math.random() - 1);
-                    const rad = cr * Math.cbrt(Math.random());
+                    const rad = r * Math.cbrt(Math.random());
                     x = rad * Math.sin(phi) * Math.cos(theta);
                     y = rad * Math.sin(phi) * Math.sin(theta) + cy;
                     z = rad * Math.cos(phi);
-                } else if (index === 2) { // Gift
-                    const w = 1.2;
-                    x = (Math.random()-0.5)*2*w;
-                    y = (Math.random()-0.5)*2*w;
-                    z = (Math.random()-0.5)*2*w;
-                    if(Math.random()>0.5) { // Shell logic
-                        const axis = Math.floor(Math.random()*3);
-                        if(axis===0) x = x>0?w:-w;
-                        else if(axis===1) y = y>0?w:-w;
-                        else z = z>0?w:-w;
+                }
+                else if (index === 2) { // Gift Box (Solid)
+                    const s = 1.3;
+                    x = (Math.random()-0.5)*2*s;
+                    y = (Math.random()-0.5)*2*s;
+                    z = (Math.random()-0.5)*2*s;
+                    // Ribbon Cross
+                    if (Math.abs(x)<0.3 || Math.abs(y)<0.3) {
+                         // Higher density ribbon
+                         x *= 1.05; y *= 1.05; z *= 1.05; 
                     }
-                } else if (index === 3) { // Antlers
-                    const t = Math.random() * Math.PI;
+                }
+                else if (index === 3) { // Antlers
                     const side = Math.random() > 0.5 ? 1 : -1;
-                    x = side * (Math.sin(t) * 1.5 + Math.sin(t*3)*0.5);
-                    y = -1.5 + t * 3.0;
-                    z = Math.cos(t) * 0.5 + (Math.random()-0.5)*0.2;
-                    x += (Math.random()-0.5)*0.2;
-                } else { // Candy Cane
-                    const t = Math.random() * 5;
-                    const thick = 0.3;
-                    if (t < 3.5) { x = 0; y = t - 2; z = 0; } 
+                    const t = Math.random() * Math.PI; // 0 to PI
+                    // Main curve
+                    x = side * (Math.sin(t) * 2.0 + Math.sin(t*3)*0.5);
+                    y = -2 + t * 4.0;
+                    z = Math.cos(t) * 0.8;
+                    // Volume
+                    x += (Math.random()-0.5)*0.3;
+                    y += (Math.random()-0.5)*0.3;
+                    z += (Math.random()-0.5)*0.3;
+                }
+                else { // Candy Cane
+                    const t = Math.random() * 6; 
+                    const thick = 0.35;
+                    if(t < 4.5) { x=0; y=t-2.5; z=0; }
                     else {
-                        const ang = (t - 3.5) * Math.PI * 1.2;
-                        x = -0.6 * (1 - Math.cos(ang));
-                        y = 1.5 + 0.6 * Math.sin(ang);
+                        const ang = (t-4.5)*Math.PI;
+                        x = -0.8 * (1-Math.cos(ang));
+                        y = 2.0 + 0.8*Math.sin(ang);
                         z = 0;
                     }
                     x += (Math.random()-0.5)*thick;
                     y += (Math.random()-0.5)*thick;
                     z += (Math.random()-0.5)*thick;
                 }
+
                 positions[p] = x;
                 positions[p+1] = y;
                 positions[p+2] = z;
@@ -421,119 +398,131 @@
             document.getElementById('model-name').innerText = shapeNames[index];
         }
 
-        // --- MediaPipe & Interaction ---
+        // --- Logic ---
         function onHandsResults(results) {
-            // 2D Skeleton Drawing
             skeletonCtx.save();
             skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
-            
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
+                const lm = results.multiHandLandmarks[0];
                 
-                // Draw 2D Skeleton
-                drawConnectors(skeletonCtx, landmarks, HAND_CONNECTIONS, {color: '#00ffff', lineWidth: 2});
-                drawLandmarks(skeletonCtx, landmarks, {color: '#ffffff', lineWidth: 1, radius: 2});
-                
-                document.getElementById('status').innerText = "LINK ESTABLISHED";
-                document.getElementById('status').style.color = "#0ff";
+                // Draw Skeleton (Cyber Style)
+                drawConnectors(skeletonCtx, lm, HAND_CONNECTIONS, {color: '#00ffcc', lineWidth: 1.5});
+                drawLandmarks(skeletonCtx, lm, {color: '#ffffff', lineWidth: 1, radius: 2});
 
-                // 3D Interaction Mapping
-                const ndcX = (1.0 - landmarks[8].x) * 2 - 1; 
-                const ndcY = -(landmarks[8].y * 2 - 1);
-                const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
-                vector.unproject(camera);
-                const dir = vector.sub(camera.position).normalize();
+                document.getElementById('status').innerText = "LINKED";
+                document.getElementById('status').style.color = "#00ffcc";
+
+                // Map 2D -> 3D Position
+                const ndcX = (1.0 - lm[8].x) * 2 - 1;
+                const ndcY = -(lm[8].y * 2 - 1);
+                const vec = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(camera);
+                const dir = vec.sub(camera.position).normalize();
                 const dist = -camera.position.z / dir.z;
-                const pos = camera.position.clone().add(dir.multiplyScalar(dist));
-                handPosition.copy(pos);
+                const targetPos = camera.position.clone().add(dir.multiplyScalar(dist));
+                
+                handPosition.lerp(targetPos, 0.15); // Smooth movement
 
-                detectGestures(landmarks);
+                detectGestures(lm);
             } else {
-                handPosition.set(999, 999, 999);
-                document.getElementById('status').innerText = "SEARCHING...";
-                document.getElementById('status').style.color = "#fff";
-                document.getElementById('gesture-display').innerText = "NONE";
+                handPosition.set(999,999,999);
+                document.getElementById('status').innerText = "SEARCHING";
+                document.getElementById('status').style.color = "red";
+                document.getElementById('gesture-display').innerText = "...";
                 isPinching = false;
             }
             skeletonCtx.restore();
         }
 
         function detectGestures(lm) {
-            const dist = (i1, i2) => Math.sqrt(Math.pow(lm[i1].x-lm[i2].x,2) + Math.pow(lm[i1].y-lm[i2].y,2) + Math.pow(lm[i1].z-lm[i2].z,2));
-            const dTipWrist = dist(8, 0) + dist(12, 0) + dist(16, 0) + dist(20, 0);
-            isFist = dTipWrist < 0.8;
+            // Fist: Tips close to wrist/palm base
+            const dist = (a, b) => Math.hypot(lm[a].x-lm[b].x, lm[a].y-lm[b].y);
+            // Average distance of finger tips to wrist (0)
+            const tipsToWrist = (dist(8,0) + dist(12,0) + dist(16,0) + dist(20,0)) / 4;
+            // Fist threshold needs tuning for different hand sizes, 0.25 is relative to screen
+            // More robust: compare tip-wrist vs pip-wrist
+            isFist = tipsToWrist < 0.25; 
 
             if (isFist && !prevFist) triggerExplosion();
             prevFist = isFist;
 
-            isPinching = dist(4, 8) < 0.05;
+            // Pinch: Index tip (8) close to Thumb tip (4)
+            isPinching = dist(8, 4) < 0.04;
 
-            let text = "HOVER";
-            if (isFist) text = "FIST [EXPLODE]";
-            else if (isPinching) text = "PINCH [ROTATE]";
-            document.getElementById('gesture-display').innerText = text;
+            let txt = "HOVER";
+            if (isFist) txt = "FIST [NEXT]";
+            else if (isPinching) txt = "PINCH [SPIN]";
+            document.getElementById('gesture-display').innerText = txt;
 
-            if (isPinching && particles) {
-                const speed = (lm[8].x - 0.5) * 8.0; 
-                particles.rotation.y += speed * 0.1;
-            } else {
-                particles.rotation.y += 0.002;
+            if (isPinching) {
+                const rot = (lm[8].x - 0.5) * 5.0;
+                particles.rotation.y += rot * 0.05;
+            } else if (CONFIG.autoRotate) {
+                particles.rotation.y += 0.001; // Slow idle spin
             }
         }
 
         function triggerExplosion() {
-            if (isExploding) return;
+            if(isExploding) return;
             isExploding = true;
             explosionTime = 0;
             setTimeout(() => {
-                currentShapeIndex = (currentShapeIndex + 1) % 5;
+                currentShapeIndex = (currentShapeIndex + 1) % shapeNames.length;
                 generateShape(currentShapeIndex);
-            }, 500);
+            }, 600); // Wait for explosion cover
         }
 
-        // --- GUI ---
+        // --- GUI (Collapsible) ---
         function setupGUI() {
-            const gui = new lil.GUI({ container: document.getElementById('gui-container'), title: 'SYSTEM_CONTROLS' });
-            
-            // Config specific for Non-collapsible requirement
-            // We use CSS to hide the close button and disable title click
-            
-            const folder = gui.addFolder('PARTICLE_ENGINE');
-            folder.add(CONFIG, 'particleSize', 0.01, 1.0).name('Size').onChange(v => material.uniforms.uSize.value = v * 50);
-            folder.add(CONFIG, 'glowIntensity', 0.0, 2.0).name('Glow');
-            folder.open(); // Default open
+            const gui = new lil.GUI({ container: document.getElementById('gui-container'), title: 'SYSTEM CONTROL' });
+            // 默认 lil-gui 即可折叠，无需特殊代码
+            gui.close(); // 默认折叠以展示全屏美景
 
-            const interact = gui.addFolder('PHYSICS_FIELD');
-            interact.add(CONFIG, 'repulseRadius', 0.5, 5.0).name('Field Radius').onChange(v => material.uniforms.uRepulseRadius.value = v);
-            interact.add(CONFIG, 'repulseStrength', 1.0, 10.0).name('Repel Force').onChange(v => material.uniforms.uRepulseStrength.value = v);
-            interact.open();
+            const pFolder = gui.addFolder('VISUALS');
+            pFolder.add(CONFIG, 'baseSize', 0.05, 0.3).name('Particle Size').onChange(v => material.uniforms.uSize.value = v*40);
+            pFolder.add(CONFIG, 'glowStrength', 0.5, 3.0).name('Glow Power');
+            
+            const iFolder = gui.addFolder('PHYSICS');
+            iFolder.add(CONFIG, 'repulseRadius', 1.0, 4.0).name('Hover Radius').onChange(v => material.uniforms.uRepulseRadius.value=v);
+            iFolder.add(CONFIG, 'repulseStrength', 1.0, 10.0).name('Force Field').onChange(v => material.uniforms.uRepulseStrength.value=v);
+            iFolder.add(CONFIG, 'autoRotate').name('Auto Spin');
 
-            const debug = gui.addFolder('DEBUG');
-            debug.add({ next: () => triggerExplosion() }, 'next').name('>> NEXT MODEL');
-            debug.open();
+            const dFolder = gui.addFolder('DEBUG');
+            dFolder.add({ next: triggerExplosion }, 'next').name('>> Next Model');
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            time += 0.01;
-            if (material) {
-                material.uniforms.uTime.value = time;
-                material.uniforms.uHandPos.value.lerp(handPosition, 0.1);
-                if (isExploding) {
-                    explosionTime += 0.025;
-                    material.uniforms.uExplosion.value = Math.sin(explosionTime * Math.PI); 
-                    if (explosionTime >= 1.0) { isExploding = false; material.uniforms.uExplosion.value = 0; }
-                }
-            }
-            renderer.render(scene, camera);
+        function resizeCanvas() {
+            skeletonCanvas.width = window.innerWidth;
+            skeletonCanvas.height = window.innerHeight;
         }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            resizeCanvas(); // Resize 2D canvas
+            resizeCanvas();
             if (material) material.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.015;
+            
+            if (material) {
+                material.uniforms.uTime.value = time;
+                material.uniforms.uHandPos.value.lerp(handPosition, 0.1);
+                
+                if (isExploding) {
+                    explosionTime += 0.02;
+                    // Sine wave 0 -> 1 -> 0
+                    material.uniforms.uExplosion.value = Math.sin(explosionTime * Math.PI);
+                    if (explosionTime >= 1.0) {
+                        isExploding = false;
+                        material.uniforms.uExplosion.value = 0;
+                    }
+                }
+            }
+            renderer.render(scene, camera);
         }
 
         init();
